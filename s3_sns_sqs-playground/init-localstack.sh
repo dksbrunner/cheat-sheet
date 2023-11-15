@@ -20,7 +20,7 @@ S3_BUCKET_NAME="kubetainers-playground-s3"
   aws sns delete-topic \
     --endpoint-url "${AWS_ENDPOINT_URL}" \
     --topic-arn "arn:aws:sns:${AWS_REGION}:000000000000:${SNS_TOPIC_NAME}"
-) || (echo "ERROR" && exit 1)
+) || echo "WARNING"
 
 echo "########### Create SNS topic ###########"
 aws sns create-topic \
@@ -32,7 +32,7 @@ aws sns create-topic \
   aws sqs delete-queue \
     --endpoint-url "${AWS_ENDPOINT_URL}" \
     --queue-url "http://localhost:4566/000000000000/${SQS_QUEUE_NAME}" --region "${AWS_REGION}"
-) || (echo "ERROR" && exit 1)
+) || echo "WARNING"
 
 echo "########### Create SQS queue ###########"
 aws sqs create-queue \
@@ -46,11 +46,22 @@ aws sns subscribe \
   --protocol sqs --notification-endpoint "arn:aws:sqs:${AWS_REGION}:000000000000:${SQS_QUEUE_NAME}"
 
 (
+  echo "########### Delete S3 objects ###########"
+  aws s3api delete-objects \
+    --endpoint-url "${AWS_ENDPOINT_URL}" \
+    --bucket "${S3_BUCKET_NAME}" --region "${AWS_REGION}" \
+    --delete "$(aws s3api list-object-versions \
+                  --endpoint-url "${AWS_ENDPOINT_URL}" \
+                  --bucket "${S3_BUCKET_NAME}" --region "${AWS_REGION}" \
+                  --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')"
+) || echo "WARNING"
+
+(
   echo "########### Delete S3 bucket ###########"
   aws s3api delete-bucket \
     --endpoint-url "${AWS_ENDPOINT_URL}" \
     --bucket "${S3_BUCKET_NAME}" --region "${AWS_REGION}"
-) || (echo "ERROR" && exit 1)
+) || echo "WARNING"
 
 echo "########### Create S3 bucket ###########"
 aws s3api create-bucket \
